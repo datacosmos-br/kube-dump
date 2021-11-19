@@ -344,7 +344,7 @@ if [ "$git_push" == 'true' ] && [ ! -d "$destination_dir/.git/" ]; then
       ssh-keyscan "$_remote_url" >> ~/.ssh/known_hosts 2>/dev/null
 
     git clone --branch "$git_branch" --single-branch --depth 1 \
-      --quiet "$_remote_url" "$destination_dir" >/dev/null 2>&1 && \
+      --quiet "$git_remote_url" "$destination_dir" >/dev/null 2>&1 && \
       success 'The remote repository is cloned at' "$destination_dir" || \
       warn 'Unable to clone remote repository at' "$destination_dir"
 
@@ -359,7 +359,7 @@ fi
 success 'Dump data in' "$destination_dir" 'directory' ''
 score=0
 
-# Work with namespaced reosurces
+# Work with namespaced resources
 if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
 
   for ns in ${namespaces//,/ }; do
@@ -413,6 +413,7 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
             .metadata.selfLink,
             .metadata.uid,
             .spec.clusterIP,
+            .spec.clusterIPs,
             .spec.progressDeadlineSeconds,
             .spec.revisionHistoryLimit,
             .spec.template.metadata.annotations."kubectl.kubernetes.io/restartedAt",

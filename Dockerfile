@@ -11,6 +11,17 @@ RUN apk add --update --no-cache \
     "https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl" && \
     chmod +x /usr/bin/kubectl
 
+
+RUN mkdir /root/.ssh/
+
+RUN touch /root/.ssh/known_hosts
+RUN ssh-keyscan -H github.com >> /root/.ssh/known_hosts
+
+RUN touch /root/.ssh/config
+RUN echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+
+
+
 COPY ./kube-dump /kube-dump
 
 ENTRYPOINT [ "/kube-dump" ]

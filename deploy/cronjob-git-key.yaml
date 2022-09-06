@@ -7,7 +7,7 @@ metadata:
   name: kube-dump
   namespace: kube-dump
 spec:
-  schedule: "0 1 * * *"
+  schedule: "1 */5 * * *"
   jobTemplate:
     spec:
       template:
@@ -15,7 +15,7 @@ spec:
           serviceAccountName: kube-dump
           containers:
             - name: kube-dump
-              image: woozymasta/kube-dump:latest
+              image: jiajie999/kube-dump:latest
               imagePullPolicy: IfNotPresent
               env:
                 - name: MODE
@@ -31,7 +31,7 @@ spec:
                 - name: GIT_COMMIT_EMAIL
                   value: "kube@dump.local"
                 - name: GIT_REMOTE_URL
-                  value: "git@corp-gitlab.com:devops/cluster-bkp.git"
+                  value: "git@github.com:tmrwh/kube-mrcd-backup.git"
               volumeMounts:
                 - name: data
                   mountPath: /data
@@ -41,6 +41,9 @@ spec:
                 - name: key-pub
                   mountPath: /root/.ssh/id_ed25519.pub
                   subPath: id_ed25519.pub
+#                - name: ssh-conf
+#                    mountPath: /root/.ssh/config
+#                    subPath: config
               resources:
                 limits:
                   cpu: 500m
@@ -67,3 +70,10 @@ spec:
                   - key: kube-dump.pub
                     path: id_ed25519.pub
                     mode: 0600
+#            - name: ssh-conf
+#                secret:
+#                  secretName: kube-dump-key
+#                  items:
+#                    - key: ssh-config
+#                      path: config
+#                      mode: 0600

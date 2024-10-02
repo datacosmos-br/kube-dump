@@ -546,25 +546,19 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
 
   # Iterate over resources
   for resource in ${namespaced_resources//,/ }; do
-    if [ "$resource" == 'pods.metrics.k8s.io' ]; then
+    if [ "$resource" == 'pods.metrics.k8s.io' ] || \
+       [ "$resource" == 'leases.coordination.k8s.io' ] || \
+       [ "$resource" == 'events.events.k8s.io' ] || \
+       [ "$resource" == 'events' ]; then
       continue
     fi
-    if [ "$resource" == 'leases.coordination.k8s.io' ]; then
-      continue
-    fi
-    if [ "$resource" == 'events.events.k8s.io' ]; then
-      continue
-    fi
-    if [ "$resource" == 'events' ]; then
-      continue
-    fi
+
     heading 'Dump resources' "$resource"
     if [ "$output_flat" == 'true' ]; then
-      msg-start "$resource"
 
       for ns in ${namespaces//,/ }; do
 
-        # Check namespace exist
+        # Check namespace existence
         if ! kubectl get ns "$ns" "${k_args[@]}" >/dev/null 2>&1; then
           warn "Namespace \"$ns\" not found"
           continue
@@ -586,11 +580,11 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
 
         # Destination file name suffix, e.g., "_pod" or empty
         destination_suffix="_$resource"
-        if [ "$output_by_type" == 'true' ]; then
-          destination_suffix="" # resource suffix was moved to dir
-        fi
+        [ "$output_by_type" == 'true' ] && destination_suffix=""
 
         destination_resource_name="all${destination_suffix}.yaml"
+        # Start processing message
+        msg-start "$resource" "$ns" "all"
 
         # Save resources to file
         kubectl --namespace="${ns}" get \
@@ -600,12 +594,12 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
             --raw-output --sort-keys  2>/dev/null | \
           yq eval --prettyPrint --no-colors --exit-status - \
             >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-            msg-end "$resource" || msg-fail "$resource"
+            msg-end "$resource" "$ns" "all" || msg-fail "$resource" "$ns" "all"
 
         success 'Namespace' "$ns" 'resources dump completed' ''
       done
     else
-      # Iterate over only accessible resources
+      # Iterate over individual resources
       while read -r resource_line; do
         [ -z "$resource_line" ] && continue
 
@@ -622,6 +616,7 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
           unset type
         fi
 
+        # Create namespace dir
         destination_namespace_dir="$destination_dir/$ns"
         [ -d "$destination_namespace_dir" ] || mkdir -p "$destination_namespace_dir"
 
@@ -636,7 +631,8 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
           destination_suffix="" # resource suffix was moved to dir
         fi
 
-        msg-start "$ns" "$name"
+        # Start processing message
+        msg-start "$resource" "$ns" "$name"
 
         destination_resource_name="${name//:/-}${destination_suffix}.${output_format}"
 
@@ -645,7 +641,7 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
           --output='json' "$resource" "$name" "${k_args[@]}" 2>/dev/null |
           output_formatting "${output_format}" "${namespaced_jq_filter}" \
             >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-            msg-end "$ns" "$name" || msg-fail "$ns" "$name"
+            msg-end "$resource" "$ns" "$name" || msg-fail "$resource" "$ns" "$name"
 
       done < <(
         kubectl get "$resource" \
@@ -668,7 +664,7 @@ if [[ "$mode" =~ ^(dump|all|dump-cluster|cls)$ ]]; then
 
   # Iterate over resources
   for resource in ${cluster_resources//,/ }; do
-    if [ "$resource" == '	nodes.metrics.k8s.io' ]; then
+    if [ "$resource" == 'nodes.metrics.k8s.io' ]; then
       continue
     fi
 
@@ -687,7 +683,7 @@ if [[ "$mode" =~ ^(dump|all|dump-cluster|cls)$ ]]; then
     fi
 
     if [ "$output_flat" == 'true' ]; then
-      msg-start "$resource"
+      msg-start "$resource" "cluster" "all"
 
       destination_resource_name="all${destination_suffix}.${output_format}"
 
@@ -696,12 +692,12 @@ if [[ "$mode" =~ ^(dump|all|dump-cluster|cls)$ ]]; then
         --output='json' "$resource" "${k_args[@]}" |
         output_formatting "${output_format}" "${cluster_jq_filter}" \
           >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-          msg-end "$resource" || msg-fail "$resource"
+          msg-end "$resource" "cluster" "all" || msg-fail "$resource" "cluster" "all"
 
     else
       # Iterate over only accessible resources
       while read -r name; do
-        msg-start "$resource" "$name"
+        msg-start "$resource" "cluster" "$name"
 
         destination_resource_name="${name//:/-}${destination_suffix}.${output_format}"
 
@@ -710,7 +706,7 @@ if [[ "$mode" =~ ^(dump|all|dump-cluster|cls)$ ]]; then
           --output='json' "$resource" "$name" "${k_args[@]}" |
           output_formatting "${output_format}" "${cluster_jq_filter}" \
             >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-            msg-end "$resource" "$name" || msg-fail "$resource" "$name"
+            msg-end "$resource" "cluster" "$name" || msg-fail "$resource" "cluster" "$name"
 
       done < <(
         kubectl get "$resource" \

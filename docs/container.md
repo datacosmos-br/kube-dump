@@ -6,6 +6,7 @@ Startup example for dump namespaces **dev** and **prod** in `$HOME/dump` directo
 
 ```shell
 docker run --tty --interactive --rm \
+  -e KUBECONFIG=/.kube/config \
   --volume $HOME/.kube:/.kube --volume $HOME/dump:/dump \
   woozymasta/kube-dump:latest \
   dump-namespaces -n dev,prod -d /dump --kube-config /.kube/config
@@ -25,6 +26,7 @@ For more convenience, you can create an alias for calling kube-dump from a conta
 
 ```shell
 alias kube-dump='docker run --tty --interactive --rm \
+  -e KUBECONFIG=/.kube/config \
   --volume $HOME/.kube:/.kube --volume $HOME/dump:/dump \
   --env KUBE_CONFIG=/.kube/config --env DESTINATION_DIR=/dump \
   woozymasta/kube-dump:latest'

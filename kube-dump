@@ -33,6 +33,7 @@ msg-start() {
     log INFO "Processing dump $*"
   fi
 }
+
 msg-end() {
   [ "$silent" == 'true' ] && return
   if [ -t 1 ]; then
@@ -41,14 +42,7 @@ msg-end() {
     log INFO "Successfully dumped $*"
   fi
 }
-msg-fail() {
-  [ "$silent" == 'true' ] && return
-  if [ -t 1 ]; then
-    printf '\e[1A\e[1;31m%-15s\e[m%s\n' 'Fail' "$*"
-  else
-    log WARNING "Failed dump $*"
-  fi
-}
+
 success() {
   [ "$silent" == 'true' ] && return
   if [ -t 1 ]; then
@@ -90,26 +84,6 @@ require() {
       fail "'$command' util not found, please install it first"
     fi
   done
-}
-
-# Output formatting
-output_formatting() {
-  case $1 in
-  json)
-    jq --monochrome-output \
-      --raw-output --sort-keys \
-      "$2" 2>/dev/null
-    ;;
-  yaml)
-    jq --exit-status --compact-output --monochrome-output \
-      --raw-output --sort-keys \
-      "$2" 2>/dev/null |
-      yq eval --prettyPrint --no-colors --exit-status -
-    ;;
-  *)
-    fail "Invalid output formatting type $1"
-    ;;
-  esac
 }
 
 # Usage message
@@ -261,7 +235,7 @@ while [ $# -ge 1 ]; do
        --git-commit-email)        git_commit_email="$2";            shift; shift;;
        --git-remote-name)         git_remote_name="$2";             shift; shift;;
        --git-remote-url)          git_remote_url="$2";              shift; shift;;
-  # Archive opts
+# Archive opts
     -a|--archive)                 archive='true';                   shift;;
        --archive-rotate-days)     archive_rotate="$2";              shift; shift;;
        --archive-type)            archive_type="$2";                shift; shift;;
@@ -389,17 +363,13 @@ fi
 
 # Set namespaced resources
 if [ -z "${namespaced_resources:-$NAMESPACED_RESOURCES}" ]; then
-  namespaced_resources="$(
-    kubectl api-resources --namespaced=true --output=name "${k_args[@]}" |
-      tr '\n' ' '
-  )"
+  namespaced_resources="$( kubectl api-resources --namespaced=true --output=name "${k_args[@]}" | tr '\n' ' ' )"
 else
   nr_in=${namespaced_resources:-$NAMESPACED_RESOURCES}
   nr_out=''
   for nr in ${nr_in//,/ }; do
     if [[ "$nr" == ALL ]]; then
-      nr_out="${nr_out} $(kubectl api-resources --namespaced=true --output=name \
-        "${k_args[@]}" | tr '\n' ' ')"
+      nr_out="${nr_out} $(kubectl api-resources --namespaced=true --output=name "${k_args[@]}" | tr '\n' ' ')"
     elif [[ "$nr" == \!* ]]; then
       # filter out $nr from list
       del=${nr#!}
@@ -579,12 +549,7 @@ process_namespaced_resources() {
         echo "$item_content" > "$destination_namespace_dir/$destination_resource_name"
       fi
 
-      # Success or fail message
-      if [ $? -eq 0 ]; then
-        msg-end "$resource" "$resource_namespace" "$resource_name"
-      else
-        msg-fail "$resource" "$resource_namespace" "$resource_name"
-      fi
+      msg-end "$resource" "$resource_namespace" "$resource_name"
     done
   done
 }
@@ -623,12 +588,7 @@ process_cluster_resources() {
         echo "$item_content" > "$destination_resource_dir/$destination_resource_name"
       fi
 
-      # Success or fail message
-      if [ $? -eq 0 ]; then
-        msg-end "$resource" "cluster" "$resource_name"
-      else
-        msg-fail "$resource" "cluster" "$resource_name"
-      fi
+      msg-end "$resource" "cluster" "$resource_name"
     done
   done
 }

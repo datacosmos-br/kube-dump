@@ -115,15 +115,15 @@ output_formatting() {
 # Usage message
 usage() {
   cat <<-EOF
-Dump kubernetes cluster resources
+Dump Kubernetes cluster resources
 
 Usage:
   ${0##*/} [command] [[flags]]
 
 Available Commands:
-  all, dump                     Dump all kubernetes resources
-  ns,  dump-namespaces          Dump namespaced kubernetes resources
-  cls, dump-cluster             Dump cluster wide kubernetes resources
+  all, dump                     Dump all Kubernetes resources
+  ns,  dump-namespaces          Dump namespaced Kubernetes resources
+  cls, dump-cluster             Dump cluster-wide Kubernetes resources
 
 The command can also be passed through the environment variable MODE.
 All flags presented below have a similar variable in uppercase, with underscores
@@ -133,22 +133,22 @@ For example:
 Flags:
   -h, --help                    This help
   -s, --silent                  Execute silently, suppress all stdout messages
-  -d, --destination-dir         Path to dir for store dumps, default ./data
+  -d, --destination-dir         Path to dir for storing dumps, default ./data
   -f, --force-remove            Delete resources in data directory before launch
-      --detailed                Do not remove detailed state specific fields
+      --detailed                Do not remove detailed state-specific fields
       --output-by-type          Organize output into directories by resource type
       --flat                    Organize all resources of the same type in the same file
       --ignore-cluster-info     Ignore cluster-info fail (useful for OpenShift w/o full admin permissions)
       --output-format           Write output as yaml or json, default yaml
 
 Kubernetes flags:
-  -n, --namespaces              List of kubernetes namespaces
+  -n, --namespaces              List of Kubernetes namespaces
   -r, --namespaced-resources    List of namespaced resources
   -k, --cluster-resources       List of cluster resources
       --kube-config             Path to kubeconfig file
       --kube-context            The name of the kubeconfig context to use
       --kube-cluster            The name of the kubeconfig cluster to use
-      --kube-insecure-tls       Skip check server's certificate for validity
+      --kube-insecure-tls       Skip checking server's certificate for validity
 
 Git commit flags:
   -c, --git-commit              Commit changes
@@ -181,18 +181,42 @@ timestamp="$(date '+%Y.%m.%d_%H-%M')"
 
 # Read vars from env
 # shellcheck disable=SC1090,SC1091
-# [ -f "$working_dir/.env" ] && . "$working_dir/.env"
+[ -f "$working_dir/.env" ] && . "$working_dir/.env"
 
-## Parse args commands
-#if [[ "${1:-$MODE}" =~ ^(dump|all|dump-namespaces|ns|dump-cluster|cls)$ ]]; then
-#  mode="${1:-$MODE}"
-#else usage; fi
+# Parse command
+if [[ "${1:-$MODE}" =~ ^(dump|all|dump-namespaces|ns|dump-cluster|cls)$ ]]; then
+  mode="${1:-$MODE}"
+else usage; fi
 
-# Ensure we are using GNU getopt
-# getopt --test >/dev/null 2>&1
-# if [[ $? -ne 4 ]]; then
-#   fail "This script requires GNU getopt. Please install it and ensure it is in your PATH."
-# fi
+# Ensure getopt supports long options
+getopt_output=$(getopt -o h -l help -- --help 2>&1)
+if [ $? -ne 0 ]; then
+  fail "This script requires getopt with long options support. Please install GNU getopt."
+fi
+
+# Set default values
+silent="${SILENT:-false}"
+detailed="${DETAILED:-false}"
+output_by_type="${OUTPUT_BY_TYPE:-false}"
+output_flat="${FLAT:-false}"
+ignore_cluster_info="${IGNORE_CLUSTER_INFO:-false}"
+kube_config="${KUBE_CONFIG:-}"
+kube_context="${KUBE_CONTEXT:-}"
+kube_cluster="${KUBE_CLUSTER:-}"
+kube_insecure_tls="${KUBE_INSECURE_TLS:-false}"
+git_commit="${GIT_COMMIT:-false}"
+git_branch="${GIT_BRANCH:-}"
+git_commit_user="${GIT_COMMIT_USER:-}"
+git_commit_email="${GIT_COMMIT_EMAIL:-}"
+git_remote_name="${GIT_REMOTE_NAME:-origin}"
+git_remote_url="${GIT_REMOTE_URL:-}"
+git_push="${GIT_PUSH:-false}"
+archive="${ARCHIVE:-false}"
+archive_rotate="${ARCHIVE_ROTATE:-}"
+archive_type="${ARCHIVE_TYPE:-tar}"
+destination_dir="${DESTINATION_DIR:-$working_dir/data}"
+output_format="${OUTPUT_FORMAT:-yaml}"
+force_remove="${FORCE_REMOVE:-false}"
 
 # Parse args flags
 args=$(

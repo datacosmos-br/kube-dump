@@ -542,9 +542,7 @@ success 'Dump data in' "$destination_dir" 'directory' ''
 score=0
 
 # Work with namespaced resources
-if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
-
-  # Iterate over resources
+process_namespaced_resources() {
   for resource in ${namespaced_resources//,/ }; do
     if [ "$resource" == 'pods.metrics.k8s.io' ] || \
        [ "$resource" == 'leases.coordination.k8s.io' ] || \
@@ -554,170 +552,95 @@ if [[ "$mode" =~ ^(dump|all|dump-namespaces|ns)$ ]]; then
     fi
 
     heading 'Dump resources' "$resource"
-    if [ "$output_flat" == 'true' ]; then
 
-      for ns in ${namespaces//,/ }; do
+    # Use a single kubectl call to get all resources for the current resource type across all namespaces
+    kubectl get "$resource" --all-namespaces -o=json "${k_args[@]}" | jq -c '.items[]' | while read -r item; do
+      resource_name=$(echo "$item" | jq -r '.metadata.name')
+      resource_namespace=$(echo "$item" | jq -r '.metadata.namespace')
 
-        # Check namespace existence
-        if ! kubectl get ns "$ns" "${k_args[@]}" >/dev/null 2>&1; then
-          warn "Namespace \"$ns\" not found"
-          continue
-        fi
+      # Create directory for namespace and resource type
+      destination_namespace_dir="$destination_dir/$resource_namespace/$resource"
+      [ -d "$destination_namespace_dir" ] || mkdir -p "$destination_namespace_dir"
 
-        # Create namespace dir
-        destination_namespace_dir="$destination_dir/$ns"
-        [ -d "$destination_namespace_dir" ] || mkdir -p "$destination_namespace_dir"
-        heading 'Dump namespace' "$ns"
+      msg-start "$resource" "$resource_namespace" "$resource_name"
 
-        # By default, output all resources in the same namespace dir
-        destination_resource_dir="$destination_namespace_dir"
+      # Define the output file name and format (json or yaml)
+      destination_resource_name="${resource_name//:/-}.${output_format}"
+      if [ "$output_format" == "yaml" ]; then
+        item_content=$(echo "$item" | yq eval --prettyPrint --no-colors -)
+      else
+        item_content=$(echo "$item" | jq .)
+      fi
 
-        # Optionally create resource dir
-        if [ "$output_by_type" == 'true' ]; then
-          destination_resource_dir="$destination_resource_dir/$resource"
-          [ -d "$destination_resource_dir" ] || mkdir -p "$destination_resource_dir"
-        fi
+      # Write resource to file (flat and non-flat modes handled here)
+      if [ "$output_flat" == 'true' ]; then
+        echo "$item_content" >> "$destination_namespace_dir/all${resource}.${output_format}"
+      else
+        echo "$item_content" > "$destination_namespace_dir/$destination_resource_name"
+      fi
 
-        # Destination file name suffix, e.g., "_pod" or empty
-        destination_suffix="_$resource"
-        [ "$output_by_type" == 'true' ] && destination_suffix=""
-
-        destination_resource_name="all${destination_suffix}.yaml"
-        # Start processing message
-        msg-start "$resource" "$ns" "all"
-
-        # Save resources to file
-        kubectl --namespace="${ns}" get \
-          --output='json' "$resource" "${k_args[@]}" 2>/dev/null |
-          jq --exit-status --compact-output --monochrome-output \
-            "$namespaced_jq_filter" \
-            --raw-output --sort-keys  2>/dev/null | \
-          yq eval --prettyPrint --no-colors --exit-status - \
-            >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-            msg-end "$resource" "$ns" "all" || msg-fail "$resource" "$ns" "all"
-
-        success 'Namespace' "$ns" 'resources dump completed' ''
-      done
-    else
-      # Iterate over individual resources
-      while read -r resource_line; do
-        [ -z "$resource_line" ] && continue
-
-        name=$(echo "$resource_line" | cut -d " " -f 1)
-        ns=$(echo "$resource_line" | cut -d " " -f 2)
-
-        # Skip service-account-token secrets
-        if [ "$resource" == 'secret' ]; then
-          type=$(
-            kubectl get --namespace="${ns}" --output=jsonpath="{.type}" \
-              secret "$name" "${k_args[@]}"
-          )
-          [ "$type" == 'kubernetes.io/service-account-token' ] && continue
-          unset type
-        fi
-
-        # Create namespace dir
-        destination_namespace_dir="$destination_dir/$ns"
-        [ -d "$destination_namespace_dir" ] || mkdir -p "$destination_namespace_dir"
-
-        # By default, output all resources in the same namespace dir
-        destination_resource_dir="$destination_namespace_dir"
-        destination_suffix="_$resource"
-
-        # Optionally create resource dir
-        if [ "$output_by_type" == 'true' ]; then
-          destination_resource_dir="$destination_resource_dir/$resource"
-          [ -d "$destination_resource_dir" ] || mkdir -p "$destination_resource_dir"
-          destination_suffix="" # resource suffix was moved to dir
-        fi
-
-        # Start processing message
-        msg-start "$resource" "$ns" "$name"
-
-        destination_resource_name="${name//:/-}${destination_suffix}.${output_format}"
-
-        # Save resource to file
-        kubectl --namespace="${ns}" get \
-          --output='json' "$resource" "$name" "${k_args[@]}" 2>/dev/null |
-          output_formatting "${output_format}" "${namespaced_jq_filter}" \
-            >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-            msg-end "$resource" "$ns" "$name" || msg-fail "$resource" "$ns" "$name"
-
-      done < <(
-        kubectl get "$resource" \
-          --output='custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace' \
-          --no-headers "${k_args[@]}" -A 2>/dev/null
-      )
-    fi
-    # Finished with resource
+      # Success or fail message
+      if [ $? -eq 0 ]; then
+        msg-end "$resource" "$resource_namespace" "$resource_name"
+      else
+        msg-fail "$resource" "$resource_namespace" "$resource_name"
+      fi
+    done
   done
-fi
+}
 
 # Work with cluster resources
-if [[ "$mode" =~ ^(dump|all|dump-cluster|cls)$ ]]; then
-
-  heading 'Dump cluster data' "$context"
-
-  # Create cluster directory
-  cluster_destination_resource_dir="$destination_dir/cluster"
-  [ -d "$cluster_destination_resource_dir" ] || mkdir -p "$cluster_destination_resource_dir"
-
-  # Iterate over resources
+process_cluster_resources() {
   for resource in ${cluster_resources//,/ }; do
     if [ "$resource" == 'nodes.metrics.k8s.io' ]; then
       continue
     fi
 
-    # Optionally create resource dir
-    if [ "$output_by_type" == 'true' ]; then
-      destination_resource_dir="$destination_resource_dir/$resource"
+    heading 'Dump cluster resources' "$resource"
+
+    # Use a single kubectl call to get all cluster resources for the current resource type
+    kubectl get "$resource" -o=json "${k_args[@]}" | jq -c '.items[]' | while read -r item; do
+      resource_name=$(echo "$item" | jq -r '.metadata.name')
+
+      # Create directory for cluster resources
+      destination_resource_dir="$destination_dir/cluster/$resource"
       [ -d "$destination_resource_dir" ] || mkdir -p "$destination_resource_dir"
-    else
-      destination_resource_dir="$cluster_destination_resource_dir"
-    fi
 
-    # Destination file name suffix, e.g., "_pod" or empty
-    destination_suffix="_$resource"
-    if [ "$output_by_type" == 'true' ]; then
-      destination_suffix="" # resource suffix was moved to dir
-    fi
+      msg-start "$resource" "cluster" "$resource_name"
 
-    if [ "$output_flat" == 'true' ]; then
-      msg-start "$resource" "cluster" "all"
+      # Define the output file name and format (json or yaml)
+      destination_resource_name="${resource_name//:/-}.${output_format}"
+      if [ "$output_format" == "yaml" ]; then
+        item_content=$(echo "$item" | yq eval --prettyPrint --no-colors -)
+      else
+        item_content=$(echo "$item" | jq .)
+      fi
 
-      destination_resource_name="all${destination_suffix}.${output_format}"
+      # Write resource to file (flat and non-flat modes handled here)
+      if [ "$output_flat" == 'true' ]; then
+        echo "$item_content" >> "$destination_resource_dir/all${resource}.${output_format}"
+      else
+        echo "$item_content" > "$destination_resource_dir/$destination_resource_name"
+      fi
 
-      # Save resource to file
-      kubectl get \
-        --output='json' "$resource" "${k_args[@]}" |
-        output_formatting "${output_format}" "${cluster_jq_filter}" \
-          >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-          msg-end "$resource" "cluster" "all" || msg-fail "$resource" "cluster" "all"
-
-    else
-      # Iterate over only accessible resources
-      while read -r name; do
-        msg-start "$resource" "cluster" "$name"
-
-        destination_resource_name="${name//:/-}${destination_suffix}.${output_format}"
-
-        # Save resource to file
-        kubectl get \
-          --output='json' "$resource" "$name" "${k_args[@]}" |
-          output_formatting "${output_format}" "${cluster_jq_filter}" \
-            >"$destination_resource_dir/$destination_resource_name" 2>/dev/null &&
-            msg-end "$resource" "cluster" "$name" || msg-fail "$resource" "cluster" "$name"
-
-      done < <(
-        kubectl get "$resource" \
-          --output='custom-columns=NAME:.metadata.name' \
-          --no-headers "${k_args[@]}" 2>/dev/null
-      )
-    fi
-    # Finished with resource
+      # Success or fail message
+      if [ $? -eq 0 ]; then
+        msg-end "$resource" "cluster" "$resource_name"
+      else
+        msg-fail "$resource" "cluster" "$resource_name"
+      fi
+    done
   done
-  success 'Cluster' "$context" 'resources dump completed' ''
-fi
+}
+
+# Main function
+run_dump() {
+  process_namespaced_resources
+  process_cluster_resources
+  wait
+}
+
+run_dump
 
 # Git
 if [ "$git_commit" == 'true' ] || [ "$git_push" == 'true' ]; then

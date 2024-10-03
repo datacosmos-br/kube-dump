@@ -19,7 +19,7 @@
 #
 # shellcheck disable=SC2015
 
-set -e
+# set -e
 
 # Messages
 log() {
@@ -163,8 +163,9 @@ if [[ "${1:-$MODE}" =~ ^(dump|all|dump-namespaces|ns|dump-cluster|cls)$ ]]; then
 else usage; fi
 
 # Ensure getopt supports long options
-getopt_output=$(getopt -o h -l help -- --help 2>&1)
-if [ $? -ne 0 ]; then
+_=$(getopt -o h -l help -- --help 2>&1)
+res=$?
+if [ "$res" -ne "0" ]; then
   fail "This script requires getopt with long options support. Please install GNU getopt."
 fi
 
@@ -401,6 +402,7 @@ fi
 cluster_jq_filter=$(
   cat <<-END
   del(
+    .LastRefresh,
     .metadata.annotations."control-plane.alpha.kubernetes.io/leader",
     .metadata.annotations."kubectl.kubernetes.io/last-applied-configuration",
     .metadata.annotations."management.cattle.io/pod-limits",
@@ -440,6 +442,7 @@ namespaced_jq_filter=$(
     .metadata.annotations."pv.kubernetes.io/bind-completed",
     .metadata.annotations."pv.kubernetes.io/bound-by-controller",
     .metadata.creationTimestamp,
+    .metadata.labels."kubernetes.io/legacy-token-last-used",
     .metadata.generation,
     .metadata.finalizers,
     .metadata.managedFields,
@@ -474,6 +477,30 @@ realpath() {
   fi
 }
 
+# Git try to clone
+if [ "$git_push" == 'true' ] && [ ! -d "$destination_dir/.git/" ]; then
+  rm -rf "$destination_dir" 
+
+  _remote_url=$(echo "$git_remote_url" | sed -r 's|ssh://([^@]+@)?([^/:]+).*|\2|')
+   if ! grep --quiet "^$_remote_url" ~/.ssh/known_hosts >/dev/null 2>&1; then
+    ssh-keyscan -H "$_remote_url" >>~/.ssh/known_hosts 2>/dev/null || {
+      warn "Unable to add SSH host $_remote_url to known_hosts"
+      exit 1
+    }
+  fi
+
+  git clone --branch "$git_branch" --single-branch --depth 1 \
+    --quiet "$git_remote_url" "$destination_dir" >/dev/null 2>&1
+  res=$?
+
+  if [ "$res" -eq "0" ]; then
+    success 'The remote repository is cloned at' "$destination_dir"
+  else
+    warn 'Unable to clone remote repository at' "$destination_dir"
+    exit 1
+  fi
+fi
+
 # Dump dir
 destination_dir="${destination_dir:-${DESTINATION_DIR:-$working_dir/data}}"
 destination_dir="$(realpath "$destination_dir")"
@@ -487,40 +514,23 @@ elif [ "${force_remove:-$FORCE_REMOVE}" == 'true' ]; then
     -exec rm -fr "{}" \;
 fi
 
-# Git try to clone
-if [ "$git_push" == 'true' ] && [ ! -d "$destination_dir/.git/" ]; then
-
-  if ! grep --quiet --extended-regexp 'https?:\/\/' <<<"$git_remote_url"; then
-    _remote_url=$(sed -r 's|.*@([A-Za-z0-9\.-]+):.*|\1|' <<<"$git_remote_url")
-    ! grep --quiet "^$_remote_url " ~/.ssh/known_hosts >/dev/null 2>&1 &&
-      ssh-keyscan "$_remote_url" >>~/.ssh/known_hosts 2>/dev/null
-
-    git clone --branch "$git_branch" --single-branch --depth 1 \
-      --quiet "$_remote_url" "$destination_dir" >/dev/null 2>&1 &&
-      success 'The remote repository is cloned at' "$destination_dir" ||
-      warn 'Unable to clone remote repository at' "$destination_dir"
-
-  else
-    git clone --branch "$git_branch" --single-branch --depth 1 \
-      --quiet "$git_remote_url" "$destination_dir" >/dev/null 2>&1 &&
-      success 'The remote repository is cloned at' "$destination_dir" ||
-      warn 'Unable to clone remote repository at' "$destination_dir"
-  fi
-fi
-
 success 'Dump data in' "$destination_dir" 'directory' ''
 score=0
 
 # Work with namespaced resources
 process_namespaced_resources() {
   for resource in ${namespaced_resources//,/ }; do
-    if [ "$resource" == 'pods.metrics.k8s.io' ] || \
-       [ "$resource" == 'leases.coordination.k8s.io' ] || \
+    if [ "$resource" == 'ciliumendpoints.cilium.io' ] || \
+       [ "$resource" == 'endpoints' ] || \
+       [ "$resource" == 'endpointslices.discovery.k8s.io' ] || \
+       [ "$resource" == 'events' ] || \
        [ "$resource" == 'events.events.k8s.io' ] || \
-       [ "$resource" == 'events' ]; then
+       [ "$resource" == 'leases.coordination.k8s.io' ] || \
+       [ "$resource" == 'pods.metrics.k8s.io' ] || \
+       [ "$resource" == 'policyreports.wgpolicyk8s.io' ]; then
       continue
     fi
-
+#      
     heading 'Dump resources' "$resource"
 
     # Use a single kubectl call to get all resources for the current resource type across all namespaces
@@ -533,6 +543,11 @@ process_namespaced_resources() {
       [ -d "$destination_namespace_dir" ] || mkdir -p "$destination_namespace_dir"
 
       msg-start "$resource" "$resource_namespace" "$resource_name"
+
+      # Apply the jq filter if --detailed flag is not set
+      if [ "$detailed" != 'true' ]; then
+        item=$(echo "$item" | jq "$namespaced_jq_filter")
+      fi
 
       # Define the output file name and format (json or yaml)
       destination_resource_name="${resource_name//:/-}.${output_format}"
@@ -557,7 +572,9 @@ process_namespaced_resources() {
 # Work with cluster resources
 process_cluster_resources() {
   for resource in ${cluster_resources//,/ }; do
-    if [ "$resource" == 'nodes.metrics.k8s.io' ]; then
+    if [ "$resource" == 'ciliumendpointslices.cilium.io' ] || \
+       [ "$resource" == 'ciliumidentities.cilium.io' ]|| \
+       [ "$resource" == 'nodes.metrics.k8s.io' ]; then
       continue
     fi
 
@@ -572,6 +589,11 @@ process_cluster_resources() {
       [ -d "$destination_resource_dir" ] || mkdir -p "$destination_resource_dir"
 
       msg-start "$resource" "cluster" "$resource_name"
+
+      # Apply the jq filter if --detailed flag is not set
+      if [ "$detailed" != 'true' ]; then
+        item=$(echo "$item" | jq "$cluster_jq_filter")
+      fi
 
       # Define the output file name and format (json or yaml)
       destination_resource_name="${resource_name//:/-}.${output_format}"
@@ -595,17 +617,30 @@ process_cluster_resources() {
 
 # Main function
 run_dump() {
-  process_namespaced_resources
-  process_cluster_resources
-  wait
+  case "$mode" in
+    all|dump)
+      process_namespaced_resources
+      process_cluster_resources
+      ;;
+    ns|dump-namespaces)
+      process_namespaced_resources
+      ;;
+    cls|dump-cluster)
+      process_cluster_resources
+      ;;
+    *)
+      usage
+      ;;
+  esac
 }
 
 run_dump
 
+
 # Git
 if [ "$git_commit" == 'true' ] || [ "$git_push" == 'true' ]; then
 
-  cd "$destination_dir"
+  cd "$destination_dir" || exit
   # Init repo if not exist
   if [ ! -d "$destination_dir/.git/" ]; then
     git init . --quiet
@@ -619,19 +654,6 @@ if [ "$git_commit" == 'true' ] || [ "$git_push" == 'true' ]; then
     git checkout -b "$git_branch" >/dev/null 2>&1 || true
   fi
 
-  # Set git username if need
-  if [ -z "$git_commit_user" ] && ! git config user.name >/dev/null 2>&1; then
-    git config --local user.name 'Kube-dump'
-  elif [ -n "$git_commit_user" ]; then
-    git config --local user.name "$git_commit_user"
-  fi
-  # Set git email if need
-  if [ -z "$git_commit_email" ] && ! git config user.email >/dev/null 2>&1; then
-    git config --local user.email "$context"
-  elif [ -n "$git_commit_email" ]; then
-    git config --local user.email "$git_commit_email"
-  fi
-
   # Ignore archives
   [ ! -f "$destination_dir/.gitignore" ] && printf '%s\n' \
     '*.tar.xz' '*.tar.gz' '*.tar.bz2' '*.tar' >"$destination_dir/.gitignore"
@@ -640,8 +662,8 @@ if [ "$git_commit" == 'true' ] || [ "$git_push" == 'true' ]; then
   if [ -n "$(git status --porcelain)" ]; then
     _commit_message="Kubernetes $context cluster data dumped at $timestamp"
     git add .
-    git add . --all
-    git commit --all --quiet --message="$_commit_message"
+    git commit --all --quiet --message="$_commit_message" \
+      ${git_commit_user:+--author="$git_commit_user <$git_commit_email>"}
     success 'Changes committed with message:' "$_commit_message"
   else
     success 'No changes,' 'nothing to commit' 'in git repository'

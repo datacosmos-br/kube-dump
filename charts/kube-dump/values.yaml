@@ -1,6 +1,3 @@
-# Global Configuration
-replicaCount: 1
-
 # Image configuration
 image:
   repository: woozymasta/kube-dump
@@ -34,16 +31,6 @@ resources:
     cpu: 200m
     memory: 100Mi
 
-# Kubernetes-specific flags
-kubernetes:
-  namespaces: [] # List of Kubernetes namespaces to include in the dump.
-  namespacedResources: [] # List of namespaced resources to dump.
-  clusterResources: [] # List of cluster-wide resources to dump.
-  kubeConfig: "" # Path to the kubeconfig file.
-  kubeContext: "" # The kubeconfig context to use.
-  kubeCluster: "" # The kubeconfig cluster to use.
-  kubeInsecureTls: false # Skip TLS verification for the Kubernetes API server.
-
 # Archive configuration
 archive:
   enabled: true # Enable archive creation.
@@ -59,6 +46,16 @@ dump:
   outputByType: true # If true, organize output into directories by resource type.
   flat: false # If true, organize all resources of the same type into the same file.
   ignoreClusterInfo: false # Ignore errors related to cluster-info.
+
+# Kubernetes-specific flags
+kubernetes:
+  namespaces: [] # List of Kubernetes namespaces to include in the dump.
+  namespacedResources: [] # List of namespaced resources to dump.
+  clusterResources: [] # List of cluster-wide resources to dump.
+  kubeConfig: "" # Path to the kubeconfig file.
+  kubeContext: "" # The kubeconfig context to use.
+  kubeCluster: "" # The kubeconfig cluster to use.
+  kubeInsecureTls: false # Skip TLS verification for the Kubernetes API server.
 
 # Git configuration
 git:

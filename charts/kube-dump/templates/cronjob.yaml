@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "kube-dump.fullname" . }}
+  name: {{ include "kube-dump.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: {{ include "kube-dump.name" . }}
@@ -16,12 +16,45 @@ spec:
         spec:
           serviceAccountName: {{ include "kube-dump.serviceAccountName" . }}
           containers:
-            - name: {{ .Chart.Name }}
+            - name: {{ include "kube-dump.name" . }}
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - "/bin/sh"
+                - "-c"
+                - |
+                  ./kube-dump 
               env:
-                - name: GIT_SSH_COMMAND
-                  value: "ssh -i /etc/git-ssh/ssh-key -o StrictHostKeyChecking=no"
+                - name: MODE
+                  value: {{ .Values.dump.mode }}
+                - name: DESTINATION_DIR
+                  value: {{ .Values.dump.destinationDir }}
+                - name: FORCE_REMOVE
+                  value: {{ .Values.dump.forceRemove | quote }}
+                - name: DETAILED
+                  value: {{ .Values.dump.detailed | quote }}
+                - name: OUTPUT_BY_TYPE
+                  value: {{ .Values.dump.outputByType | quote }}
+                - name: FLAT
+                  value: {{ .Values.dump.flat | quote }}
+                - name: IGNORE_CLUSTER_INFO
+                  value: {{ .Values.dump.ignoreClusterInfo | quote }}
+                - name: OUTPUT_FORMAT
+                  value: {{ .Values.dump.outputFormat }}
+                - name: NAMESPACES
+                  value: {{ .Values.kubernetes.namespaces }}
+                - name: NAMESPACED_RESOURCES
+                  value: {{ .Values.kubernetes.namespacedResources }}
+                - name: CLUSTER_RESOURCES
+                  value: {{ .Values.kubernetes.clusterResources }}
+                - name: KUBE_CONFIG
+                  value: {{ .Values.kubernetes.kubeConfig }}
+                - name: KUBE_CONTEXT
+                  value: {{ .Values.kubernetes.kubeContext }}
+                - name: KUBE_CLUSTER
+                  value: {{ .Values.kubernetes.kubeCluster }}
+                - name: KUBE_INSECURE_TLS
+                  value: {{ .Values.kubernetes.kubeInsecureTls | quote }}
                 - name: GIT_COMMIT
                   value: {{ .Values.git.commit | quote }}
                 - name: GIT_PUSH
@@ -36,6 +69,12 @@ spec:
                   value: {{ .Values.git.remoteName }}
                 - name: GIT_REMOTE_URL
                   value: {{ .Values.git.remoteUrl }}
+                - name: ARCHIVE_ENABLED
+                  value: {{ .Values.archive.enabled | quote }}
+                - name: ARCHIVE_TYPE
+                  value: {{ .Values.archive.type }}
+                - name: ARCHIVE_ROTATE_DAYS
+                  value: {{ .Values.archive.rotateDays | quote }}
               volumeMounts:
                 {{- if .Values.pvc.enabled }}
                 - name: data
@@ -52,12 +91,12 @@ spec:
             {{- if .Values.pvc.enabled }}
             - name: data
               persistentVolumeClaim:
-                claimName: {{ include "kube-dump.fullname" . }}-data
+                claimName: {{ include "kube-dump.name" . }}-data
             {{- end }}
             {{- if .Values.git.sshKey }}
             - name: git-ssh
               secret:
-                secretName: {{ include "kube-dump.fullname" . }}-ssh
+                secretName: {{ include "kube-dump.name" . }}-ssh
                 items:
                   - key: ssh-key
                     path: ssh-key

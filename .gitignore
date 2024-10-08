@@ -4,5 +4,6 @@
 *.tar
 data/
 .ssh/
+.env
 
 .idea

@@ -3,7 +3,7 @@ include .env
 export $(shell sed 's/=.*//' .env)
 
 # Nome completo da imagem
-IMAGE_NAME = $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
+IMAGE_NAME = $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
 
 # Build da imagem Docker
 build:

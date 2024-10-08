@@ -1,0 +1,82 @@
+# Global Configuration
+replicaCount: 1
+
+# Image configuration
+image:
+  repository: woozymasta/kube-dump
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Service Account configuration
+serviceAccount:
+  create: true
+  # Name of the service account. If not set, the fullname template will be used.
+  name: ""
+
+# PVC (Persistent Volume Claim) configuration
+pvc:
+  enabled: false
+  storageClass: ""
+  size: 1Gi
+
+# CronJob configuration
+cronjob:
+  enabled: true
+  schedule: "0 1 * * *" # Schedule in Cron format for the job execution.
+  backoffLimit: 3 # Number of retries before marking the job as failed.
+
+# Resources configuration for containers
+resources:
+  limits:
+    cpu: 500m
+    memory: 200Mi
+  requests:
+    cpu: 200m
+    memory: 100Mi
+
+# Kubernetes-specific flags
+kubernetes:
+  namespaces: [] # List of Kubernetes namespaces to include in the dump.
+  namespacedResources: [] # List of namespaced resources to dump.
+  clusterResources: [] # List of cluster-wide resources to dump.
+  kubeConfig: "" # Path to the kubeconfig file.
+  kubeContext: "" # The kubeconfig context to use.
+  kubeCluster: "" # The kubeconfig cluster to use.
+  kubeInsecureTls: false # Skip TLS verification for the Kubernetes API server.
+
+# Archive configuration
+archive:
+  enabled: true # Enable archive creation.
+  type: "xz" # Archive type: "xz", "gz", "bz2".
+  rotateDays: 60 # Rotate archives older than specified days.
+
+# Dump options
+dump:
+  mode: "dump" # Options: "all", "ns", "cls"
+  destinationDir: "/data" # Directory path for storing dumps.
+  forceRemove: true # Whether to delete resources in the data directory before the job starts.
+  detailed: false # If true, detailed state-specific fields will not be removed.
+  outputByType: true # If true, organize output into directories by resource type.
+  flat: false # If true, organize all resources of the same type into the same file.
+  ignoreClusterInfo: false # Ignore errors related to cluster-info.
+
+# Git configuration
+git:
+  commit: false # Enable git commits for changes.
+  push: false # Enable git push after committing.
+  branch: "main" # Git branch name to push changes.
+  commitUser: "kube-dump" # Username for git commits.
+  commitEmail: "kube-dump@example.com" # Email for git commits.
+  remoteName: "origin" # Name of the git remote.
+  remoteUrl: "" # URL of the remote git repository.
+  sshKeySecretName: "kube-dump-ssh-key" # Name of the secret containing the SSH private key.
+  sshKey: "" # SSH private key content (base64 encoded). Recommended to set this in a separate secret.
+
+# Logging and verbosity
+logging:
+  silent: false # If true, suppress all stdout messages.
+
+# Output configuration
+output:
+  format: "yaml" # Options: "yaml", "json"
+

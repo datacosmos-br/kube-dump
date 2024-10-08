@@ -1,0 +1,57 @@
+{{- if .Values.cronjob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "kube-dump.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "kube-dump.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  schedule: {{ .Values.cronjob.schedule }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cronjob.backoffLimit }}
+      template:
+        spec:
+          serviceAccountName: {{ include "kube-dump.serviceAccountName" . }}
+          containers:
+            - name: {{ .Chart.Name }}
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              env:
+                - name: GIT_SSH_COMMAND
+                  value: "ssh -i /etc/git-ssh/ssh-key -o StrictHostKeyChecking=no"
+                - name: GIT_COMMIT
+                  value: {{ .Values.git.commit | quote }}
+                - name: GIT_PUSH
+                  value: {{ .Values.git.push | quote }}
+                - name: GIT_BRANCH
+                  value: {{ .Values.git.branch }}
+                - name: GIT_COMMIT_USER
+                  value: {{ .Values.git.commitUser }}
+                - name: GIT_COMMIT_EMAIL
+                  value: {{ .Values.git.commitEmail }}
+                - name: GIT_REMOTE_NAME
+                  value: {{ .Values.git.remoteName }}
+                - name: GIT_REMOTE_URL
+                  value: {{ .Values.git.remoteUrl }}
+              volumeMounts:
+                - name: git-ssh
+                  mountPath: /etc/git-ssh
+                  readOnly: true
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+          volumes:
+            - name: git-ssh
+              secret:
+                secretName: {{ .Values.git.sshKeySecretName }}
+                items:
+                  - key: ssh-key
+                    path: ssh-key
+                    mode: 0600
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "kube-dump.fullname" . }}
+          restartPolicy: OnFailure
+{{- end }}

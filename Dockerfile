@@ -19,7 +19,7 @@ RUN ssh-keyscan -H github.com >> /root/.ssh/known_hosts
 RUN touch /root/.ssh/config
 RUN echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
 
-RUN pip3 install awscli
+RUN pip3 install awscli --break-system-packages
 
 COPY ./kube-dump /kube-dump
 

@@ -1,0 +1,15 @@
+{{- define "kube-dump.fullname" -}}
+{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+
+{{- define "kube-dump.name" -}}
+{{- .Chart.Name -}}
+{{- end }}
+
+{{- define "kube-dump.serviceAccountName" -}}
+{{- if .Values.serviceAccount.name }}
+{{- .Values.serviceAccount.name -}}
+{{- else }}
+{{- include "kube-dump.fullname" . -}}
+{{- end }}
+{{- end }}

@@ -37,21 +37,31 @@ spec:
                 - name: GIT_REMOTE_URL
                   value: {{ .Values.git.remoteUrl }}
               volumeMounts:
+                {{- if .Values.pvc.enabled }}
+                - name: data
+                  mountPath: /data
+                {{- end }}
+                {{- if .Values.git.sshKey }}
                 - name: git-ssh
                   mountPath: /etc/git-ssh
                   readOnly: true
+                {{- end }}
               resources:
                 {{- toYaml .Values.resources | nindent 16 }}
           volumes:
+            {{- if .Values.pvc.enabled }}
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "kube-dump.fullname" . }}-data
+            {{- end }}
+            {{- if .Values.git.sshKey }}
             - name: git-ssh
               secret:
-                secretName: {{ .Values.git.sshKeySecretName }}
+                secretName: {{ include "kube-dump.fullname" . }}-ssh
                 items:
                   - key: ssh-key
                     path: ssh-key
                     mode: 0600
-            - name: data
-              persistentVolumeClaim:
-                claimName: {{ include "kube-dump.fullname" . }}
+            {{- end }}
           restartPolicy: OnFailure
 {{- end }}

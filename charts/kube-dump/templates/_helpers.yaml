@@ -1,9 +1,13 @@
 {{- define "kube-dump.fullname" -}}
+{{- if .Release.IsInstall }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
 {{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
 {{- end }}
 
 {{- define "kube-dump.name" -}}
-{{- .Chart.Name -}}
+{{- .Chart.Name | trunc 63 -}}
 {{- end }}
 
 {{- define "kube-dump.serviceAccountName" -}}

@@ -636,10 +636,11 @@ run_dump() {
 run_dump
 
 
+
 # Git
 if [ "$git_commit" == 'true' ] || [ "$git_push" == 'true' ]; then
 
-  cd "$destination_dir" || exit
+  cd "$destination_dir"
   # Init repo if not exist
   if [ ! -d "$destination_dir/.git/" ]; then
     git init . --quiet
@@ -653,17 +654,30 @@ if [ "$git_commit" == 'true' ] || [ "$git_push" == 'true' ]; then
     git checkout -b "$git_branch" >/dev/null 2>&1 || true
   fi
 
+  # Set git username if need
+  if [ -z "$git_commit_user" ] && ! git config user.name >/dev/null 2>&1; then
+    git config --local user.name 'Kube-dump'
+  elif [ -n "$git_commit_user" ]; then
+    git config --local user.name "$git_commit_user"
+  fi
+  # Set git email if need
+  if [ -z "$git_commit_email" ] && ! git config user.email >/dev/null 2>&1; then
+    git config --local user.email "$context"
+  elif [ -n "$git_commit_email" ]; then
+    git config --local user.email "$git_commit_email"
+  fi
+
   # Ignore archives
   [ ! -f "$destination_dir/.gitignore" ] && printf '%s\n' \
-    '*.tar.xz' '*.tar.gz' '*.tar.bz2' '*.tar' >"$destination_dir/.gitignore"
+    '*.tar.xz' '*.tar.gz' '*.tar.bz2' '*.tar' > "$destination_dir/.gitignore"
 
   # Commit all
   if [ -n "$(git status --porcelain)" ]; then
     _commit_message="Kubernetes $context cluster data dumped at $timestamp"
     git add .
-    git commit --all --quiet --message="$_commit_message" \
-      ${git_commit_user:+--author="$git_commit_user <$git_commit_email>"}
-    success 'Changes committed with message:' "$_commit_message"
+    git add . --all
+    git commit --all --quiet --message="$_commit_message"
+    success 'Changes commited with message:' "$_commit_message"
   else
     success 'No changes,' 'nothing to commit' 'in git repository'
   fi
@@ -675,30 +689,28 @@ if [ "$git_commit" == 'true' ] || [ "$git_push" == 'true' ]; then
       warn "Remote git repository url not set, cannot push"
     elif [ -n "$git_remote_url" ]; then
       git remote add "${git_remote_name:-origin}" \
-        "$git_remote_url" >/dev/null 2>&1 || true
+        "$git_remote_url" > /dev/null 2>&1 || true
     fi
-    git config pull.rebase false
-    git config pull.ff false
-    git pull "$git_remote_url" "$git_branch" --allow-unrelated-histories || true
+    git pull --ff-only "$git_remote_url" "$git_branch" || true
     git push --quiet --set-upstream "${git_remote_name:-origin}" "$git_branch"
   fi
 fi
 
-# Archive
-if [ "$archive" == 'true' ]; then
+# Archivate
+if [ "$archivate" == 'true' ]; then
 
   # Set compression flag and archive name
   [ "$archive_type" == 'xz' ] && _compress='--xz'
   [ "$archive_type" == 'gz' ] && _compress='--gzip'
   [ "$archive_type" == 'bz2' ] && _compress='--bzip2'
   if [ -n "$_compress" ]; then
-    _archive="${destination_dir}/dump_$timestamp.tar.${archive_type}"
+    _archive="${destination_dir}/dump_$timestamp.tar.$archive_type"
   else
     _archive="${destination_dir}/dump_$timestamp.tar"
   fi
 
   # Create archive
-  tar --create --file="$_archive" --absolute-names "$_compress" \
+  tar --create --file="$_archive" --absolute-names $_compress \
     --exclude-vcs --exclude='*.tar' --exclude='*.tar.xz' \
     --exclude='*.tar.gz' --exclude='*.tar.bz2' \
     --directory="${destination_dir%/*}" "${destination_dir##*/}"
@@ -709,7 +721,7 @@ if [ "$archive" == 'true' ]; then
     find "${destination_dir}" -mindepth 1 -maxdepth 1 -type f -name "*.tar" \
       -o -name "*.tar.xz" -o -name "*.tar.gz" -o -name "*.tar.bz2" \
       -mtime +"$archive_rotate" -delete
-    success 'Rotation for older than' "$archive_rotate days" \
+    success 'Rotatinon for older than' "$archive_rotate days" \
       "*.tar.${archive_type:-xz} archives removed"
   fi
 fi

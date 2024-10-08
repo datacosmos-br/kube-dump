@@ -19,19 +19,17 @@ spec:
               image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               securityContext:
-                runAsUser: 0 # 100
-                runAsGroup: 0 # 101
+                runAsUser: 100
+                runAsGroup: 101
               command:
                 - "/bin/sh"
                 - "-c"
                 - |
                   {{- if .Values.git.sshKey }}
-                  mkdir ~/.ssh && \
-                  chmod 700 ~/.ssh && \
                   cp /etc/git-ssh/ssh-key ~/.ssh/id_rsa && \
                   chmod 600 ~/.ssh/id_rsa && \
                   {{- end }}
-                  bash -x ./kube-dump 
+                  ./kube-dump 
               env:
                 - name: MODE
                   value: {{ .Values.dump.mode | default "dump" | quote }}

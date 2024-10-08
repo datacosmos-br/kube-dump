@@ -24,6 +24,10 @@ RUN mkdir -p /root/.ssh/ && \
     touch /root/.ssh/config && \
     echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> /root/.ssh/config
 
+RUN mkdir -p /data && chown -R kubeuser:kubeuser /data
 COPY ./kube-dump /kube-dump
+RUN chmod +x /kube-dump
+
+USER kubeuser
 
 ENTRYPOINT [ "/kube-dump" ]

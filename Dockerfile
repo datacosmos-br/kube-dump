@@ -22,11 +22,12 @@ COPY ./kube-dump /kube-dump
 
 RUN addgroup -S kubeuser && adduser -S kubeuser -G kubeuser && \
     mkdir -p /home/kubeuser/.ssh && \
-    chown -R kubeuser:kubeuser /home/kubeuser/.ssh && \
-    chmod 700 /home/kubeuser/.ssh && \
     ssh-keyscan -H github.com >> /home/kubeuser/.ssh/known_hosts && \
     touch /kubeuser/.ssh/config && \
     echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> /kubeuser/.ssh/config && \
+    chown -R kubeuser:kubeuser /home/kubeuser/.ssh && \
+    chmod 700 /home/kubeuser/.ssh && \
+    chmod 600 /home/kubeuser/.ssh/ && \
     mkdir -p /data && chown -R kubeuser:kubeuser /data & \
     chmod +x /kube-dump
 

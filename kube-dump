@@ -523,6 +523,7 @@ process_namespaced_resources() {
     if [ "$resource" == 'ciliumendpoints.cilium.io' ] || \
        [ "$resource" == 'endpoints' ] || \
        [ "$resource" == 'endpointslices.discovery.k8s.io' ] || \
+       [ "$resource" == 'ephemeralreports.reports.kyverno.io' ] || \
        [ "$resource" == 'events' ] || \
        [ "$resource" == 'events.events.k8s.io' ] || \
        [ "$resource" == 'leases.coordination.k8s.io' ] || \

@@ -479,10 +479,8 @@ realpath() {
 
 # Git try to clone
 if [ "$git_push" == 'true' ] && [ ! -d "$destination_dir/.git/" ]; then
-  rm -rf "${destination_dir:?}/" "${destination_dir:?}/.git*"
-
   _remote_url=$(echo "$git_remote_url" | sed -r 's|ssh://([^@]+@)?([^/:]+).*|\2|')
-   if ! grep --quiet "^$_remote_url" ~/.ssh/known_hosts >/dev/null 2>&1; then
+  if ! grep --quiet "^$_remote_url" ~/.ssh/known_hosts >/dev/null 2>&1; then
     ssh-keyscan -H "$_remote_url" >>~/.ssh/known_hosts 2>/dev/null || {
       warn "Unable to add SSH host $_remote_url to known_hosts"
       exit 1
@@ -490,7 +488,7 @@ if [ "$git_push" == 'true' ] && [ ! -d "$destination_dir/.git/" ]; then
   fi
 
   git clone --branch "$git_branch" --single-branch --depth 1 \
-    --quiet "$git_remote_url" "$destination_dir" >/dev/null 2>&1
+    --quiet "$git_remote_url" "$destination_dir" # >/dev/null 2>&1
   res=$?
 
   if [ "$res" -eq "0" ]; then

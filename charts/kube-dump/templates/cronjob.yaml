@@ -18,6 +18,20 @@ spec:
             - name: {{ include "kube-dump.chart" . }}
               image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                runAsUser: 0 # 100
+                runAsGroup: 0 # 101
+              command:
+                - "/bin/sh"
+                - "-c"
+                - |
+                  {{- if .Values.git.sshKey }}
+                  mkdir ~/.ssh && \
+                  chmod 700 ~/.ssh && \
+                  cp /etc/git-ssh/ssh-key ~/.ssh/id_rsa && \
+                  chmod 600 ~/.ssh/id_rsa && \
+                  {{- end }}
+                  bash -x ./kube-dump 
               env:
                 - name: MODE
                   value: {{ .Values.dump.mode | default "dump" | quote }}
@@ -86,6 +100,9 @@ spec:
             - name: data
               persistentVolumeClaim:
                 claimName: {{ include "kube-dump.name" . }}-data
+            {{- else }}
+            - name: data
+              emptyDir: {}
             {{- end }}
             {{- if .Values.git.sshKey }}
             - name: git-ssh
@@ -94,7 +111,7 @@ spec:
                 items:
                   - key: ssh-key
                     path: ssh-key
-                    mode: 0600
+                    mode: 0666
             {{- end }}
           restartPolicy: OnFailure
 {{- end }}

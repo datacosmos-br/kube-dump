@@ -40,7 +40,7 @@ archive:
 # Dump options
 dump:
   mode: "dump" # Options: "all", "ns", "cls"
-  destinationDir: "/data" # Directory path for storing dumps.
+  destinationDir: "/data/dump" # Directory path for storing dumps.
   forceRemove: true # Whether to delete resources in the data directory before the job starts.
   detailed: false # If true, detailed state-specific fields will not be removed.
   outputByType: true # If true, organize output into directories by resource type.

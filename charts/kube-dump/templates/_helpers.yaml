@@ -10,10 +10,22 @@
 {{ include "kube-dump.fullname" . }}
 {{- end }}
 
+{{- define "kube-dump.chart" -}}
+{{- .Chart.Name -}}
+{{- end }}
+
 {{- define "kube-dump.serviceAccountName" -}}
 {{- if .Values.serviceAccount.name }}
 {{- .Values.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
 {{- else }}
 {{ include "kube-dump.fullname" . }}
 {{- end }}
+{{- end }}
+
+{{- define "kube-dump.labels" -}}
+app.kubernetes.io/name: {{ include "kube-dump.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/component: kube-dump
 {{- end }}

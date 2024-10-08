@@ -1,16 +1,21 @@
+{{- if .Values.serviceAccount.create }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {{ include "kube-dump.serviceAccountName" . }}
-  namespace: {{ .Release.Namespace }}
+  # namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: {{ include "kube-dump.name" . }}
+    {{ include "kube-dump.labels" . | nindent 4 }}
+{{- end }}
 
+{{- if .Values.serviceAccount.create }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "kube-dump.serviceAccountName" . }}
+  name: {{ include "kube-dump.name" . }}
+  labels:
+    {{ include "kube-dump.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -19,4 +24,4 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "kube-dump.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
-
+{{- end }}

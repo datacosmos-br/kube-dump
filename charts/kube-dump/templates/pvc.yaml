@@ -5,8 +5,7 @@ metadata:
   name: {{ include "kube-dump.fullname" . }}-data
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: {{ include "kube-dump.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    {{ include "kube-dump.labels" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteOnce

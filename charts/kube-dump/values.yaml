@@ -8,7 +8,7 @@ image:
 serviceAccount:
   create: true
   # Name of the service account. If not set, the fullname template will be used.
-  name: ""
+  name: "kube-dump"
 
 # PVC (Persistent Volume Claim) configuration
 pvc:

@@ -15,65 +15,60 @@ spec:
         spec:
           serviceAccountName: {{ include "kube-dump.serviceAccountName" . }}
           containers:
-            - name: {{ include "kube-dump.name" . }}
-              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            - name: {{ include "kube-dump.chart" . }}
+              image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
-              command:
-                - "/bin/sh"
-                - "-c"
-                - |
-                  ./kube-dump 
               env:
                 - name: MODE
-                  value: {{ .Values.dump.mode }}
+                  value: {{ .Values.dump.mode | default "dump" | quote }}
                 - name: DESTINATION_DIR
-                  value: {{ .Values.dump.destinationDir }}
+                  value: {{ .Values.dump.destinationDir | default "/data" | quote }}
                 - name: FORCE_REMOVE
-                  value: {{ .Values.dump.forceRemove | quote }}
+                  value: {{ .Values.dump.forceRemove | default false | quote }}
                 - name: DETAILED
-                  value: {{ .Values.dump.detailed | quote }}
+                  value: {{ .Values.dump.detailed | default false | quote }}
                 - name: OUTPUT_BY_TYPE
-                  value: {{ .Values.dump.outputByType | quote }}
+                  value: {{ .Values.dump.outputByType | default true | quote }}
                 - name: FLAT
-                  value: {{ .Values.dump.flat | quote }}
+                  value: {{ .Values.dump.flat | default false | quote }}
                 - name: IGNORE_CLUSTER_INFO
-                  value: {{ .Values.dump.ignoreClusterInfo | quote }}
+                  value: {{ .Values.dump.ignoreClusterInfo | default false | quote }}
                 - name: OUTPUT_FORMAT
-                  value: {{ .Values.dump.outputFormat }}
+                  value: {{ .Values.output.format | default "yaml" | quote }}
                 - name: NAMESPACES
-                  value: {{ .Values.kubernetes.namespaces }}
+                  value: {{ join "," .Values.kubernetes.namespaces | default "" | quote }}
                 - name: NAMESPACED_RESOURCES
-                  value: {{ .Values.kubernetes.namespacedResources }}
+                  value: {{ join "," .Values.kubernetes.namespacedResources | default "" | quote }}
                 - name: CLUSTER_RESOURCES
-                  value: {{ .Values.kubernetes.clusterResources }}
+                  value: {{ join "," .Values.kubernetes.clusterResources | default "" | quote }}
                 - name: KUBE_CONFIG
-                  value: {{ .Values.kubernetes.kubeConfig }}
+                  value: {{ .Values.kubernetes.kubeConfig | default "" | quote }}
                 - name: KUBE_CONTEXT
-                  value: {{ .Values.kubernetes.kubeContext }}
+                  value: {{ .Values.kubernetes.kubeContext | default "" | quote  }}
                 - name: KUBE_CLUSTER
-                  value: {{ .Values.kubernetes.kubeCluster }}
+                  value: {{ .Values.kubernetes.kubeCluster | default "" | quote }}
                 - name: KUBE_INSECURE_TLS
-                  value: {{ .Values.kubernetes.kubeInsecureTls | quote }}
+                  value: {{ .Values.kubernetes.kubeInsecureTls | default false | quote }}
                 - name: GIT_COMMIT
-                  value: {{ .Values.git.commit | quote }}
+                  value: {{ .Values.git.commit | default false | quote }}
                 - name: GIT_PUSH
-                  value: {{ .Values.git.push | quote }}
+                  value: {{ .Values.git.push | default false | quote }}
                 - name: GIT_BRANCH
-                  value: {{ .Values.git.branch }}
+                  value: {{ .Values.git.branch | default "main" | quote }}
                 - name: GIT_COMMIT_USER
-                  value: {{ .Values.git.commitUser }}
+                  value: {{ .Values.git.commitUser | default "kube-dump" | quote }}
                 - name: GIT_COMMIT_EMAIL
-                  value: {{ .Values.git.commitEmail }}
+                  value: {{ .Values.git.commitEmail | default "kube-dump@example.com" | quote }}
                 - name: GIT_REMOTE_NAME
-                  value: {{ .Values.git.remoteName }}
+                  value: {{ .Values.git.remoteName | default "origin" | quote }}
                 - name: GIT_REMOTE_URL
-                  value: {{ .Values.git.remoteUrl }}
+                  value: {{ .Values.git.remoteUrl | default "" | quote }}
                 - name: ARCHIVE_ENABLED
-                  value: {{ .Values.archive.enabled | quote }}
+                  value: {{ .Values.archive.enabled | default false | quote }}
                 - name: ARCHIVE_TYPE
-                  value: {{ .Values.archive.type }}
+                  value: {{ .Values.archive.type | default "xz" | quote }}
                 - name: ARCHIVE_ROTATE_DAYS
-                  value: {{ .Values.archive.rotateDays | quote }}
+                  value: {{ .Values.archive.rotateDays | default 60 | quote }}
               volumeMounts:
                 {{- if .Values.pvc.enabled }}
                 - name: data
@@ -95,7 +90,7 @@ spec:
             {{- if .Values.git.sshKey }}
             - name: git-ssh
               secret:
-                secretName: {{ include "kube-dump.name" . }}-ssh
+                secretName: {{ .Values.git.sshKeySecretName }}
                 items:
                   - key: ssh-key
                     path: ssh-key

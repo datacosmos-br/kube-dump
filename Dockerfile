@@ -24,7 +24,7 @@ RUN addgroup -S kubeuser && adduser -S kubeuser -G kubeuser
 
 RUN mkdir -p /home/kubeuser/.ssh
 RUN ssh-keyscan -H github.com >> /home/kubeuser/.ssh/known_hosts
-RUN touch /kubeuser/.ssh/config
+RUN touch /home//kubeuser/.ssh/config
 RUN echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> /home/kubeuser/.ssh/config
 RUN chown -R kubeuser:kubeuser /home/kubeuser/.ssh
 RUN chmod 700 /home/kubeuser/.ssh

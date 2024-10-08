@@ -18,15 +18,17 @@ RUN case "$TARGETPLATFORM" in \
     "https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/${ARCH}/kubectl" && \
     chmod +x /usr/bin/kubectl
 
-RUN mkdir -p /root/.ssh/ && \
-    touch /root/.ssh/known_hosts && \
-    ssh-keyscan -H github.com >> /root/.ssh/known_hosts && \
-    touch /root/.ssh/config && \
-    echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> /root/.ssh/config
-
-RUN mkdir -p /data && chown -R kubeuser:kubeuser /data
 COPY ./kube-dump /kube-dump
-RUN chmod +x /kube-dump
+
+RUN addgroup -S kubeuser && adduser -S kubeuser -G kubeuser && \
+    mkdir -p /home/kubeuser/.ssh && \
+    chown -R kubeuser:kubeuser /home/kubeuser/.ssh && \
+    chmod 700 /home/kubeuser/.ssh && \
+    ssh-keyscan -H github.com >> /home/kubeuser/.ssh/known_hosts && \
+    touch /kubeuser/.ssh/config && \
+    echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> /kubeuser/.ssh/config && \
+    mkdir -p /data && chown -R kubeuser:kubeuser /data & \
+    chmod +x /kube-dump
 
 USER kubeuser
 

@@ -479,8 +479,6 @@ realpath() {
 
 # Git try to clone
 if [ "$git_push" == 'true' ] && [ ! -d "$destination_dir/.git/" ]; then
-  rm -rf "$destination_dir" 
-
   _remote_url=$(echo "$git_remote_url" | sed -r 's|ssh://([^@]+@)?([^/:]+).*|\2|')
    if ! grep --quiet "^$_remote_url" ~/.ssh/known_hosts >/dev/null 2>&1; then
     ssh-keyscan -H "$_remote_url" >>~/.ssh/known_hosts 2>/dev/null || {

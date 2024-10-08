@@ -1,11 +1,6 @@
-# Carrega as variáveis do .env se existir, senão usa valores padrão
--include .env
-
-# Valores padrão caso as variáveis não estejam definidas no .env
-DOCKER_REGISTRY ?= example-registry.com
-DOCKER_REPOSITORY ?= example-repository
-DOCKER_IMAGE ?= example-image
-DOCKER_TAG ?= latest
+# Carrega as variáveis do .env
+include .env
+export $(shell sed 's/=.*//' .env)
 
 # Nome completo da imagem
 IMAGE_NAME = $(DOCKER_REGISTRY)/$(DOCKER_REPOSITORY)/$(DOCKER_IMAGE):$(DOCKER_TAG)

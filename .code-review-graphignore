@@ -1,0 +1,22 @@
+# BEGIN AI-HUB CRG GLOBAL POLICY
+.worktrees/**
+worktrees/**
+.agents/worktrees/**
+.code-review-graph/wiki/**
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.min.js
+*.min.css
+coverage/**
+.coverage/**
+.pytest_cache/**
+.ruff_cache/**
+.mypy_cache/**
+.tox/**
+.cache/**
+tmp/**
+temp/**
+# END AI-HUB CRG GLOBAL POLICY
